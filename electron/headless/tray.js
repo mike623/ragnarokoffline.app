@@ -1,7 +1,7 @@
 'use strict';
 // --headless: a menu-bar / notification-area icon, so a server running in the
 // background is one click from its Settings page, start/stop and sharing.
-// Everything goes through the same calls the admin page makes (`invoke`).
+// Server actions go through the same calls the admin page makes (`invoke`).
 const path = require('path');
 const { execFile } = require('child_process');
 const { Tray, Menu, nativeImage, shell, Notification } = require('electron');
@@ -11,6 +11,7 @@ const { Tray, Menu, nativeImage, shell, Notification } = require('electron');
  * @param {object} o
  * @param {string} o.adminUrl   signed-in Settings address
  * @param {() => string} o.gameUrl
+ * @param {() => void} o.openGameWindow
  * @param {(name: string, args?: object) => Promise<any>} o.invoke
  * @param {() => string} o.logsDir
  * @param {() => void} o.quit
@@ -64,6 +65,7 @@ function createTray(o) {
 			{ type: 'separator' },
 			{ label: 'Open Settings', click: () => shell.openExternal(o.adminUrl) },
 			{ label: 'Open Game in Browser', click: () => shell.openExternal(o.gameUrl()) },
+			{ label: 'Play in Window', click: run('Opening the game window', o.openGameWindow) },
 			...(process.platform === 'darwin' ? [{ label: 'Play with nostalRE', click: () => execFile('open', ['-a', 'nostalRE'], e => {
 				if (e) tell('nostalRE is not installed. Put nostalRE.app in Applications.');
 			}) }] : []),

@@ -4355,6 +4355,12 @@ async function startHeadless() {
 	// The menu-bar icon: Settings, start/stop and sharing without the terminal.
 	const tray = process.argv.includes('--no-tray') ? null : require('./headless/tray').createTray({
 		adminUrl: admin.url, gameUrl, invoke: headlessInvoke,
+		openGameWindow: () => {
+			const win = openGame();
+			if (win.isMinimized()) win.restore();
+			win.show();
+			win.focus();
+		},
 		logsDir: () => path.join(stateDir(), 'logs'), quit: () => app.quit(), log: appLog,
 	});
 	// The one place the address is, for a host who did not see it scroll past

@@ -5,7 +5,7 @@
 > (Settings → Save data → Back up everything).
 
 Ragnarok Offline normally hosts from its game window: open the app, and the
-server starts. Headless mode is the same app with no windows at all. It starts
+server starts. Headless mode is the same app starting without windows. It starts
 the server on its own, and Settings opens in a browser, at an address the app
 prints when it starts. It is for:
 
@@ -16,6 +16,10 @@ prints when it starts. It is for:
 It runs on macOS, Windows and Linux, from the same install as the desktop app.
 Nothing extra is needed, and nothing about the world changes: the same
 characters, mods and settings, whichever way the app was started.
+
+On a desktop, choose **Play in Window** from the tray menu, next to
+**Open Game in Browser**, to open the original Electron game window. Choosing
+it again brings the existing game forward. Closing it keeps the server running.
 
 ## Starting it
 
