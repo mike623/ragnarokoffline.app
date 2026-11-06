@@ -6,8 +6,6 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { Tray, Menu, nativeImage, shell, Notification } = require('electron');
 
-// The native client (nostalRE), opened by bundle id wherever it is installed.
-const NOSTALRE_ID = 'io.github.mikewong.nostalre.mac';
 
 /**
  * @param {object} o
@@ -66,8 +64,8 @@ function createTray(o) {
 			{ type: 'separator' },
 			{ label: 'Open Settings', click: () => shell.openExternal(o.adminUrl) },
 			{ label: 'Open Game in Browser', click: () => shell.openExternal(o.gameUrl()) },
-			...(process.platform === 'darwin' ? [{ label: 'Play with nostalRE', click: () => execFile('open', ['-b', NOSTALRE_ID], e => {
-				if (e) tell('nostalRE is not installed. Build it with macos/bundle.sh and move nostalRE.app to Applications.');
+			...(process.platform === 'darwin' ? [{ label: 'Play with nostalRE', click: () => execFile('open', ['-a', 'nostalRE'], e => {
+				if (e) tell('nostalRE is not installed. Put nostalRE.app in Applications.');
 			}) }] : []),
 			{ type: 'separator' },
 			{ label: 'Start Server', enabled: !busy, click: run('Starting the server', () => o.invoke('start_stack')) },
