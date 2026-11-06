@@ -4352,6 +4352,11 @@ async function startHeadless() {
 		log: appLog,
 	});
 	headlessAdmin = admin;
+	// The menu-bar icon: Settings, start/stop and sharing without the terminal.
+	const tray = process.argv.includes('--no-tray') ? null : require('./headless/tray').createTray({
+		adminUrl: admin.url, gameUrl, invoke: headlessInvoke,
+		logsDir: () => path.join(stateDir(), 'logs'), quit: () => app.quit(), log: appLog,
+	});
 	// The one place the address is, for a host who did not see it scroll past
 	// -- and on Windows, where a windowed app's output reaches no terminal.
 	const urlFile = path.join(stateDir(), 'headless-admin.url');
@@ -4376,7 +4381,10 @@ async function startHeadless() {
 	fs.watchFile(phaseFile, { interval: 1000 }, () => {
 		try {
 			const phase = fs.readFileSync(phaseFile, 'utf8').trim();
-			if (phase && phase !== lastPhase) appLog(`server: ${(lastPhase = phase)}`);
+			if (phase && phase !== lastPhase) {
+				appLog(`server: ${(lastPhase = phase)}`);
+				if (tray) tray.setPhase(phase.replace(/…$/, ''));
+			}
 		} catch { /* not written yet */ }
 	});
 
@@ -4390,6 +4398,7 @@ async function startHeadless() {
 		return;
 	}
 	await runServerOperation('start_stack', {});
+	if (tray) tray.setPhase('Ready');
 	appLog(`headless: ready. Players open ${gameUrl()}`);
 }
 
