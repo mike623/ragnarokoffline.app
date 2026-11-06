@@ -3,7 +3,11 @@
 // background is one click from its Settings page, start/stop and sharing.
 // Everything goes through the same calls the admin page makes (`invoke`).
 const path = require('path');
+const { execFile } = require('child_process');
 const { Tray, Menu, nativeImage, shell, Notification } = require('electron');
+
+// The native client (nostalRE), opened by bundle id wherever it is installed.
+const NOSTALRE_ID = 'io.github.mikewong.nostalre.mac';
 
 /**
  * @param {object} o
@@ -62,6 +66,9 @@ function createTray(o) {
 			{ type: 'separator' },
 			{ label: 'Open Settings', click: () => shell.openExternal(o.adminUrl) },
 			{ label: 'Open Game in Browser', click: () => shell.openExternal(o.gameUrl()) },
+			...(process.platform === 'darwin' ? [{ label: 'Play with nostalRE', click: () => execFile('open', ['-b', NOSTALRE_ID], e => {
+				if (e) tell('nostalRE is not installed. Build it with macos/bundle.sh and move nostalRE.app to Applications.');
+			}) }] : []),
 			{ type: 'separator' },
 			{ label: 'Start Server', enabled: !busy, click: run('Starting the server', () => o.invoke('start_stack')) },
 			{ label: 'Stop Server', enabled: !busy, click: run('Stopping the server', async () => { await o.invoke('stack_down'); phase = 'Stopped'; return 'Server stopped.'; }) },
