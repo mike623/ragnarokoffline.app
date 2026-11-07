@@ -77,3 +77,19 @@ window.ROConfigLocal = {
 	enableConsole: true,
 	BGMFileExtension: ['mp3']
 };
+
+// Local fork: the server-switch mod's choice. 'kore' logs in through OpenKore's
+// XKore 2 proxy (6901) instead of rAthena; everything else is the same entry,
+// cloned after the app has rewritten it (port, packetver, langtype).
+(function () {
+	var pick = null;
+	try { pick = localStorage.getItem('rooff-server'); } catch (e) { /* storage off */ }
+	if (pick !== 'kore') return;
+	// OpenKore checks the real password; the autologin mod's one-time token
+	// would be refused and the remembered login forgotten.
+	if (window.ROConfigLocal.plugins) delete window.ROConfigLocal.plugins.autologin;
+	var direct = window.ROConfigLocal.servers[0];
+	window.ROConfigLocal.servers = [Object.assign({}, direct, {
+		display: 'Ragnarok Offline (OpenKore)', desc: 'through the bot (XKore 2)', port: 6901,
+	})];
+})();

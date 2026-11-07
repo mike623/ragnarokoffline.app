@@ -1,0 +1,8 @@
+{
+  "name": "server-switch",
+  "version": "1.0.0",
+  "author": "Ragnarok Offline (local fork)",
+  "description": "A Switch Server button in the option menu (Escape): play directly on Ragnarok Offline, or through OpenKore (XKore 2) so the bot assists. The game reloads to the login screen of the chosen one.",
+  "default": "on",
+  "requires": { "app": ">=1.4.0", "era": "any" }
+}
