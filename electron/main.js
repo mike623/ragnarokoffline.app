@@ -15,7 +15,8 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, screen, ses
 // Headless: no windows, the server started on its own, and Settings in a
 // browser at an address printed once (electron/headless/, docs/HEADLESS.md).
 // For a machine with no screen, or one the host reaches over SSH.
-const HEADLESS = process.argv.includes('--headless') || process.env.RAGNAROK_OFFLINE_HEADLESS === '1';
+// Local fork: headless by default; --window (or RAGNAROK_OFFLINE_HEADLESS=0) opens the game window as upstream does.
+const HEADLESS = !process.argv.includes('--window') && process.env.RAGNAROK_OFFLINE_HEADLESS !== '0';
 // Chromium needs a display server on Linux even with no window open. With
 // none to be had, use its headless platform; Xvfb (docs/HEADLESS.md) is the
 // fallback if this build of Electron lacks it.
@@ -46,6 +47,7 @@ const { parseJoinAddress, GAME_PATH } = require('./join-address');
 const { probeHost } = require('./host-probe');
 const { installDesktopEntry } = require('./linux-desktop-entry');
 const { JoinSession } = require('./join-session');
+const openkore = require('./openkore-sidecar').createOpenKoreSidecar({ log: m => appLog(m) }); // local fork only
 const joinSession = new JoinSession();
 let sharing, sharingSecrets;
 let sharingStartRequest = 0;
@@ -877,7 +879,8 @@ function advertiseHost() {
 // configured character/map address; keep precisely those three destinations.
 function proxyTargets(client) {
 	const backend = client.lan ? advertiseHost() : '127.0.0.1';
-	return require('./ports').gameTargets(gamePorts(), backend);
+	// Local fork: plus OpenKore's XKore 2 ports, for the server-switch mod.
+	return [...require('./ports').gameTargets(gamePorts(), backend), ...openkore.proxyTargets()];
 }
 
 // One public web origin; legacy LAN addresses are normalized by join-address.
@@ -2500,7 +2503,7 @@ function resumeSharing(reason) {
 const handlers = {
 	// stack.sh
 	stack_up: () => runStack(['up']),
-	stack_down: () => runStack(['down']),
+	stack_down: () => { openkore.stop(); return runStack(['down']); }, // local fork: the bot goes down with the server
 	stack_status: () => runStack(['status']),
 
 	// Mods
@@ -3337,6 +3340,7 @@ const handlers = {
 		// assets_ready() before it will navigate, so nothing would ever start it.
 		await assetsStart();
 		appLog('start_stack: asset server started');
+		openkore.start();
 		return out;
 	},
 
@@ -4139,6 +4143,7 @@ function hostTimeZone() {
 // responding until the containers finished stopping. Quitting must stay
 // responsive even though the work behind it is slow.
 async function teardownAsync() {
+	openkore.stop();
 	modHostsInstance?.stopAll();
 	// The account stays as it is: the server is going down with it.
 	if (agentPlayInstance?.running()) await agentPlayInstance.stop({ disableAccount: false }).catch(() => {});
@@ -4166,6 +4171,7 @@ async function teardownAsync() {
 // by the OS and there is no guarantee the event loop runs again, so there is
 // nothing to await with.
 function teardownSync() {
+	openkore.stop();
     if (sharing?.child) sharing.child.kill();
 	assetServer.stopSync();
 	if (getClientPaths().mode === 'join') return;
@@ -4329,6 +4335,29 @@ async function headlessInvoke(name, args) {
 }
 
 // --headless: start the admin page and the server, and print where both are.
+// Local fork: tray pages (OpenKore panel, Settings) in app windows, one each.
+// The preload turns the page's confirm()/alert() into native dialogs.
+const trayWindows = {};
+function openTrayWindow(key, url, title) {
+	const open = trayWindows[key];
+	if (open && !open.isDestroyed()) { open.show(); open.focus(); return; }
+	if (!url) { appLog(`tray window ${key}: no address`); return; }
+	const win = new BrowserWindow({
+		width: 1100, height: 760, title,
+		webPreferences: { preload: path.join(__dirname, 'kore-panel-preload.js') },
+	});
+	win.loadURL(url);
+	trayWindows[key] = win;
+}
+const openKorePanel = () => openTrayWindow('kore', openkore.panelUrl(), 'OpenKore');
+// The panel's confirm()/alert(), as native dialogs (kore-panel-preload.js).
+ipcMain.on('kore-panel-dialog', (event, kind, message) => {
+	const win = BrowserWindow.fromWebContents(event.sender);
+	const buttons = kind === 'confirm' ? ['OK', 'Cancel'] : ['OK'];
+	const choice = dialog.showMessageBoxSync(win, { type: 'question', message, buttons, defaultId: 0, cancelId: buttons.length - 1 });
+	event.returnValue = kind === 'confirm' ? choice === 0 : undefined;
+});
+
 async function startHeadless() {
 	if (process.platform === 'darwin' && app.dock) app.dock.hide();
 	const { RemoteDialogs } = require('./headless/remote-dialogs');
@@ -4362,6 +4391,8 @@ async function startHeadless() {
 			win.focus();
 		},
 		logsDir: () => path.join(stateDir(), 'logs'), quit: () => app.quit(), log: appLog,
+		openKorePanel: openkore.enabled() ? openKorePanel : null,
+		openSettings: () => openTrayWindow('settings', admin.url, 'Ragnarok Offline Settings'),
 	});
 	// The one place the address is, for a host who did not see it scroll past
 	// -- and on Windows, where a windowed app's output reaches no terminal.

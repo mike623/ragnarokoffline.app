@@ -63,15 +63,17 @@ function createTray(o) {
 			{ label: busy ? `${busy}…` : `Server: ${phase}`, enabled: false },
 			{ label: sharingLabel, enabled: false },
 			{ type: 'separator' },
-			{ label: 'Open Settings', click: () => shell.openExternal(o.adminUrl) },
+			{ label: 'Open Settings', click: () => (o.openSettings ? o.openSettings() : shell.openExternal(o.adminUrl)) },
 			{ label: 'Open Game in Browser', click: () => shell.openExternal(o.gameUrl()) },
 			{ label: 'Play in Window', click: run('Opening the game window', o.openGameWindow) },
+			...(o.openKorePanel ? [{ label: 'OpenKore Panel', click: o.openKorePanel }] : []),
 			...(process.platform === 'darwin' ? [{ label: 'Play with nostalRE', click: () => execFile('open', ['-a', 'nostalRE'], e => {
 				if (e) tell('nostalRE is not installed. Put nostalRE.app in Applications.');
 			}) }] : []),
 			{ type: 'separator' },
-			{ label: 'Start Server', enabled: !busy, click: run('Starting the server', () => o.invoke('start_stack')) },
-			{ label: 'Stop Server', enabled: !busy, click: run('Stopping the server', async () => { await o.invoke('stack_down'); phase = 'Stopped'; return 'Server stopped.'; }) },
+			// Local fork: only offer the action that applies to the server's state.
+			{ label: 'Start Server', enabled: !busy && /^(Stopped|Failed)/.test(phase), click: run('Starting the server', async () => { await o.invoke('start_stack'); phase = 'Ready'; }) },
+			{ label: 'Stop Server', enabled: !busy && phase !== 'Stopped', click: run('Stopping the server', async () => { await o.invoke('stack_down'); phase = 'Stopped'; return 'Server stopped.'; }) },
 			{ type: 'separator' },
 			on
 				? { label: 'Stop Sharing', enabled: !busy, click: run('Stopping sharing', async () => { await o.invoke('sharing_stop'); return 'Sharing stopped.'; }) }
