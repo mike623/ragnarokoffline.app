@@ -1,0 +1,8 @@
+{
+  "name": "kore-deal-fix",
+  "version": "1.0.0",
+  "author": "Ragnarok Offline (local fork)",
+  "description": "Playing through OpenKore: closes the shop's Buy/Sell/Cancel popup once the buy or sell list opens. The bot answers that popup itself, and roBrowser only closes it on a click, so it stayed on screen forever.",
+  "default": "on",
+  "requires": { "app": ">=1.4.0", "era": "any" }
+}

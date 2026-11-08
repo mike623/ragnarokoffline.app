@@ -69,3 +69,6 @@ stack/target/
 
 # Editor settings are per person, not per repo.
 /.vscode/
+
+.kit/
+__pycache__/

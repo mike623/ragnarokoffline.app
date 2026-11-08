@@ -1,0 +1,8 @@
+{
+  "name": "watch-mode",
+  "version": "1.0.0",
+  "author": "Ragnarok Offline (local fork)",
+  "description": "Spectate OpenKore: hides NPC dialogs, choice boxes, item popups and the hotbar so the screen is just the game. On by default when playing Through OpenKore; Ctrl+Shift+H, or /watch or @watch [on|off] in chat, toggles.",
+  "default": "on",
+  "requires": { "app": ">=1.4.0", "era": "any" }
+}

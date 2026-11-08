@@ -70,7 +70,8 @@ function createOpenKoreSidecar({ log = () => {} } = {}) {
 		start() {
 			if (!this.enabled() || this.running()) return;
 			blocker = powerSaveBlocker.start('prevent-app-suspension');
-			run('kore', '/usr/bin/perl', ['openkore.pl', '--interface=Socket'], { cwd: KORE });
+			// TERM: a GUI-launched app has none, and OpenKore's console code warns on every line without it.
+			run('kore', '/usr/bin/perl', ['openkore.pl', '--interface=Socket'], { cwd: KORE, env: { ...process.env, TERM: process.env.TERM || 'dumb' } });
 			const uv = path.join(os.homedir(), '.local', 'bin', 'uv');
 			if (fs.existsSync(uv)) {
 				run('kore-gateway', uv, ['run', 'kore-gateway.py'], {

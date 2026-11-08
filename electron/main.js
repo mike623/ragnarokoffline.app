@@ -3312,8 +3312,20 @@ const handlers = {
 
 	// Re-link the client every start: a freshly materialised runtime has no GRF
 	// generated assets or a private archive manifest yet, and only the setup window writes those.
-	start_stack: async () => {
+	start_stack: async (args = {}) => {
 		const saved = getClientPaths();
+		// Local fork: the game page calls this on every load. Re-running the
+		// supervisor restarts rAthena, which kicks everyone (OpenKore too), so a
+		// page load reuses a stack that is already serving.
+		if (args.reuse && saved.mode !== 'join' && assetsReady()) {
+			const { probeListeners, gamePorts: portsOf } = require('./listener-probe');
+			const { results } = await probeListeners({ addresses: ['127.0.0.1'], ports: portsOf(gamePorts()), timeoutMs: 500 });
+			if (results.every(r => r.outcome === 'open')) {
+				appLog('start_stack: already running, reusing it');
+				openkore.start();
+				return 'already running';
+			}
+		}
 		// Joining runs no engine, no containers and no asset server: the host
 		// runs all of it. Confirm the host answers instead, so an unreachable
 		// address fails here with something a player can act on rather than as
@@ -4338,14 +4350,40 @@ async function headlessInvoke(name, args) {
 // Local fork: tray pages (OpenKore panel, Settings) in app windows, one each.
 // The preload turns the page's confirm()/alert() into native dialogs.
 const trayWindows = {};
+// Which tray windows were open at quit, so the next start reopens them.
+// Quitting (app.exit) fires no `close`, so only a user close drops a key.
+const trayOpenPath = () => path.join(stateDir(), 'tray-windows.json');
+function trayOpenKeys() {
+	try { return JSON.parse(fs.readFileSync(trayOpenPath(), 'utf8')) || []; } catch { return []; }
+}
+function setTrayOpen(key, on) {
+	const keys = new Set(trayOpenKeys());
+	if (on) keys.add(key); else keys.delete(key);
+	try { fs.mkdirSync(stateDir(), { recursive: true }); fs.writeFileSync(trayOpenPath(), JSON.stringify([...keys])); } catch { /* not worth failing over */ }
+}
 function openTrayWindow(key, url, title) {
 	const open = trayWindows[key];
 	if (open && !open.isDestroyed()) { open.show(); open.focus(); return; }
 	if (!url) { appLog(`tray window ${key}: no address`); return; }
+	const id = `tray-${key}`;
+	const saved = usableWindowState(readWindowState(id));
 	const win = new BrowserWindow({
 		width: 1100, height: 760, title,
+		...(saved ? { width: saved.width, height: saved.height } : {}),
+		...(saved && typeof saved.x === 'number' ? { x: saved.x, y: saved.y } : {}),
 		webPreferences: { preload: path.join(__dirname, 'kore-panel-preload.js') },
 	});
+	if (saved && saved.maximized) win.maximize();
+	trackWindowState(id, win);
+	setTrayOpen(key, true);
+	win.on('close', () => { if (!tearingDown) setTrayOpen(key, false); });
+	// Reopened at launch, the gateway and tunnel may still be starting: retry
+	// a failed load or a 5xx (tunnel up, gateway not) for about two minutes.
+	// ponytail: fixed 3s x 40 retries, no backoff.
+	let tries = 0;
+	const retry = () => { if (++tries <= 40) setTimeout(() => { if (!win.isDestroyed()) win.loadURL(url); }, 3000); };
+	win.webContents.on('did-fail-load', (e, code, desc, failedUrl, isMainFrame) => { if (isMainFrame && code !== -3) retry(); });
+	win.webContents.on('did-navigate', (e, navUrl, status) => { if (status >= 500) retry(); });
 	win.loadURL(url);
 	trayWindows[key] = win;
 }
@@ -4394,6 +4432,11 @@ async function startHeadless() {
 		openKorePanel: openkore.enabled() ? openKorePanel : null,
 		openSettings: () => openTrayWindow('settings', admin.url, 'Ragnarok Offline Settings'),
 	});
+	// Reopen the tray windows that were open when the app last quit.
+	for (const key of trayOpenKeys()) {
+		if (key === 'kore' && openkore.enabled()) openKorePanel();
+		else if (key === 'settings') openTrayWindow('settings', admin.url, 'Ragnarok Offline Settings');
+	}
 	// The one place the address is, for a host who did not see it scroll past
 	// -- and on Windows, where a windowed app's output reaches no terminal.
 	const urlFile = path.join(stateDir(), 'headless-admin.url');

@@ -85,9 +85,8 @@ window.ROConfigLocal = {
 	var pick = null;
 	try { pick = localStorage.getItem('rooff-server'); } catch (e) { /* storage off */ }
 	if (pick !== 'kore') return;
-	// OpenKore checks the real password; the autologin mod's one-time token
-	// would be refused and the remembered login forgotten.
-	if (window.ROConfigLocal.plugins) delete window.ROConfigLocal.plugins.autologin;
+	// Autologin stays on: OpenKore runs with XKore_skipPassword 1, so its proxy
+	// takes the autologin mod's one-time token (it only checks the username).
 	var direct = window.ROConfigLocal.servers[0];
 	window.ROConfigLocal.servers = [Object.assign({}, direct, {
 		display: 'Ragnarok Offline (OpenKore)', desc: 'through the bot (XKore 2)', port: 6901,

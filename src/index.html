@@ -127,7 +127,7 @@ async function boot() {
   show();
 
   try {
-    await invoke('start_stack');
+    await invoke('start_stack', { reuse: true });
   } catch (e) {
     ticking = false;
     return giveUp(plain(e));
